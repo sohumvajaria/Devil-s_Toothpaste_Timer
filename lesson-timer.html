@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson Timer</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0a0a;
+    --surface: #141414;
+    --border: rgba(255,255,255,0.08);
+    --border-strong: rgba(255,255,255,0.15);
+    --text: #f0ede6;
+    --muted: rgba(240,237,230,0.45);
+    --hint: rgba(240,237,230,0.2);
+    --accent: #f0ede6;
+    --warn: #d4a847;
+    --urgent: #c95f4a;
+    --done: rgba(240,237,230,0.15);
+    --progress-bg: rgba(255,255,255,0.08);
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    overflow: hidden;
+  }
+
+  .app {
+    height: 100vh;
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    grid-template-rows: 1fr;
+  }
+
+  .main {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 4rem 5rem;
+    border-right: 0.5px solid var(--border);
+    position: relative;
+  }
+
+  .top-bar {
+    position: absolute;
+    top: 2rem;
+    left: 5rem;
+    right: 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .seg-label {
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+  }
+
+  .elapsed {
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    font-family: 'DM Mono', monospace;
+    color: var(--hint);
+  }
+
+  .now-tag {
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--hint);
+    font-family: 'DM Mono', monospace;
+    margin-bottom: 1rem;
+  }
+
+  .seg-title {
+    font-size: clamp(2rem, 4vw, 3.2rem);
+    font-weight: 300;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    margin-bottom: 0.75rem;
+    color: var(--text);
+  }
+
+  .seg-desc {
+    font-size: 15px;
+    color: var(--muted);
+    font-weight: 400;
+    margin-bottom: 3rem;
+    max-width: 480px;
+    line-height: 1.6;
+  }
+
+  .countdown {
+    font-family: 'DM Mono', monospace;
+    font-size: clamp(5rem, 14vw, 10rem);
+    font-weight: 400;
+    line-height: 1;
+    letter-spacing: -0.04em;
+    color: var(--text);
+    margin-bottom: 2rem;
+    transition: color 0.4s;
+  }
+
+  .countdown.warning { color: var(--warn); }
+  .countdown.urgent { color: var(--urgent); }
+
+  .progress-track {
+    height: 2px;
+    background: var(--progress-bg);
+    border-radius: 99px;
+    margin-bottom: 2.5rem;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: var(--text);
+    border-radius: 99px;
+    transition: width 1s linear, background 0.4s;
+  }
+
+  .progress-fill.warning { background: var(--warn); }
+  .progress-fill.urgent { background: var(--urgent); }
+
+  .controls {
+    display: flex;
+    gap: 10px;
+  }
+
+  .btn {
+    padding: 10px 20px;
+    font-size: 13px;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 500;
+    cursor: pointer;
+    border-radius: 6px;
+    border: 0.5px solid var(--border-strong);
+    background: transparent;
+    color: var(--text);
+    letter-spacing: 0.02em;
+    transition: background 0.15s, transform 0.1s;
+  }
+
+  .btn:hover { background: rgba(255,255,255,0.06); }
+  .btn:active { transform: scale(0.97); }
+
+  .btn-primary {
+    background: var(--text);
+    color: var(--bg);
+    border-color: var(--text);
+    min-width: 110px;
+  }
+
+  .btn-primary:hover { background: rgba(240,237,230,0.88); }
+
+  .sidebar {
+    display: flex;
+    flex-direction: column;
+    padding: 2rem 1.5rem;
+    overflow-y: auto;
+    gap: 0;
+  }
+
+  .sidebar-title {
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--hint);
+    font-family: 'DM Mono', monospace;
+    margin-bottom: 1.25rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 0.5px solid var(--border);
+  }
+
+  .next-block {
+    background: var(--surface);
+    border: 0.5px solid var(--border-strong);
+    border-radius: 8px;
+    padding: 1rem 1.1rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .next-label {
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--hint);
+    font-family: 'DM Mono', monospace;
+    margin-bottom: 4px;
+  }
+
+  .next-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 2px;
+  }
+
+  .next-dur {
+    font-size: 12px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+  }
+
+  .queue {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .q-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 10px;
+    border-radius: 6px;
+    font-size: 13px;
+    color: var(--muted);
+    transition: background 0.15s;
+  }
+
+  .q-item.done {
+    opacity: 0.3;
+    text-decoration: line-through;
+  }
+
+  .q-item.active {
+    background: rgba(255,255,255,0.05);
+    color: var(--text);
+    font-weight: 500;
+  }
+
+  .q-dur {
+    font-size: 11px;
+    font-family: 'DM Mono', monospace;
+    color: var(--hint);
+    white-space: nowrap;
+    margin-left: 8px;
+  }
+
+  .done-screen {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    display: none;
+  }
+
+  .done-screen h2 {
+    font-size: 2.5rem;
+    font-weight: 300;
+    letter-spacing: -0.02em;
+  }
+
+  .done-screen p {
+    font-size: 15px;
+    color: var(--muted);
+  }
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 99px; }
+</style>
+</head>
+<body>
+
+<div class="app" id="app">
+  <div class="main">
+    <div class="top-bar">
+      <span class="seg-label" id="seg-num">Segment 1 of 11</span>
+      <span class="elapsed" id="elapsed">0:00 elapsed</span>
+    </div>
+
+    <div class="now-tag">Now</div>
+    <div class="seg-title" id="seg-title">Title + intro slide</div>
+    <div class="seg-desc" id="seg-desc">Introduce the project and set the stage.</div>
+    <div class="countdown" id="countdown">1:00</div>
+
+    <div class="progress-track">
+      <div class="progress-fill" id="progress-fill" style="width:100%"></div>
+    </div>
+
+    <div class="controls">
+      <button class="btn btn-primary" id="btn-start" onclick="toggle()">Start</button>
+      <button class="btn" onclick="skip()">Skip</button>
+      <button class="btn" onclick="reset()">Reset</button>
+    </div>
+  </div>
+
+  <div class="sidebar">
+    <div class="sidebar-title">All segments</div>
+
+    <div class="next-block" id="next-block">
+      <div class="next-label">Up next</div>
+      <div class="next-title" id="next-title">Article reading</div>
+      <div class="next-dur" id="next-dur">5 min</div>
+    </div>
+
+    <div class="queue" id="queue"></div>
+  </div>
+</div>
+
+<div class="done-screen" id="done-screen">
+  <h2>Lesson complete.</h2>
+  <p>40 minutes. Good luck on the presentation.</p>
+  <button class="btn" onclick="reset()" style="margin-top:1rem">Reset</button>
+</div>
+
+<script>
+const segments = [
+  { title: "Title + intro slide",    desc: "Introduce the project and set the stage.",                                    dur: 60  },
+  { title: "Article reading",        desc: "Students read silently. Stay quiet.",                                         dur: 300 },
+  { title: "Chemistry slides",       desc: "Reactants, catalyst diagram, career slide. Explain the mechanism.",           dur: 480 },
+  { title: "Distribute small kits",  desc: "Hand out materials. Give all instructions before anyone touches anything.",   dur: 120 },
+  { title: "Student reactions",      desc: "Students run their own elephant toothpaste.",                                  dur: 300 },
+  { title: "Observation discussion", desc: "What did they see? Tie to collision theory and gas law.",                     dur: 240 },
+  { title: "Big demonstration",      desc: "The climax. Run the large-scale reaction.",                                   dur: 180 },
+  { title: "Discussion slide",       desc: "Walk through mechanism, bond energy, and kinetics.",                          dur: 240 },
+  { title: "Conclusion slide",       desc: "Three key concepts. Aerospace connection.",                                   dur: 120 },
+  { title: "Quiz (Google Forms)",    desc: "Students complete the 10-question assessment.",                               dur: 300 },
+  { title: "Review quiz answers",    desc: "Go over answers verbally as a class.",                                        dur: 60  }
+];
+
+let current = 0, timeLeft = segments[0].dur, totalElapsed = 0, running = false, interval = null;
+
+function fmt(s) {
+  return Math.floor(s/60) + ':' + String(s%60).padStart(2,'0');
+}
+
+function render() {
+  const seg = segments[current];
+  const pct = (timeLeft / seg.dur) * 100;
+  const state = timeLeft <= 10 ? 'urgent' : timeLeft <= 30 ? 'warning' : '';
+
+  document.getElementById('seg-title').textContent = seg.title;
+  document.getElementById('seg-desc').textContent = seg.desc;
+  document.getElementById('seg-num').textContent = 'Segment ' + (current+1) + ' of ' + segments.length;
+  document.getElementById('elapsed').textContent = fmt(totalElapsed) + ' elapsed';
+
+  const cd = document.getElementById('countdown');
+  cd.textContent = fmt(timeLeft);
+  cd.className = 'countdown' + (state ? ' '+state : '');
+
+  const pf = document.getElementById('progress-fill');
+  pf.style.width = pct + '%';
+  pf.className = 'progress-fill' + (state ? ' '+state : '');
+
+  const next = segments[current+1];
+  const nb = document.getElementById('next-block');
+  if (next) {
+    nb.style.display = 'block';
+    document.getElementById('next-title').textContent = next.title;
+    document.getElementById('next-dur').textContent = Math.round(next.dur/60) + ' min';
+  } else {
+    nb.style.display = 'none';
+  }
+
+  const q = document.getElementById('queue');
+  q.innerHTML = '';
+  segments.forEach((s, i) => {
+    const div = document.createElement('div');
+    const cls = i < current ? 'done' : i === current ? 'active' : '';
+    div.className = 'q-item ' + cls;
+    div.innerHTML = '<span>' + s.title + '</span><span class="q-dur">' + Math.round(s.dur/60) + 'm</span>';
+    q.appendChild(div);
+  });
+
+  document.getElementById('btn-start').textContent = running ? 'Pause' : (totalElapsed > 0 ? 'Resume' : 'Start');
+}
+
+function toggle() {
+  if (running) {
+    clearInterval(interval);
+    running = false;
+  } else {
+    running = true;
+    interval = setInterval(tick, 1000);
+  }
+  render();
+}
+
+function tick() {
+  timeLeft--;
+  totalElapsed++;
+  if (timeLeft <= 0) {
+    current++;
+    if (current >= segments.length) {
+      clearInterval(interval);
+      running = false;
+      document.getElementById('app').style.display = 'none';
+      document.getElementById('done-screen').style.display = 'flex';
+      return;
+    }
+    timeLeft = segments[current].dur;
+  }
+  render();
+}
+
+function skip() {
+  totalElapsed += timeLeft;
+  current++;
+  if (current >= segments.length) {
+    clearInterval(interval);
+    running = false;
+    document.getElementById('app').style.display = 'none';
+    document.getElementById('done-screen').style.display = 'flex';
+    return;
+  }
+  timeLeft = segments[current].dur;
+  render();
+}
+
+function reset() {
+  clearInterval(interval);
+  running = false;
+  current = 0;
+  timeLeft = segments[0].dur;
+  totalElapsed = 0;
+  document.getElementById('app').style.display = 'grid';
+  document.getElementById('done-screen').style.display = 'none';
+  render();
+}
+
+render();
+</script>
+</body>
+</html>
